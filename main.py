@@ -102,7 +102,7 @@ if __name__ == "__main__":
         # card_set 严格判断
         set_cardSet_flag = False
         for word in LLM_output2['card_set'].split(' '):
-            if word in question_with_image:
+            if word in question_with_image or word.lower() == 'base':
                 set_cardSet_flag = True
                 pass
             else:
@@ -111,7 +111,6 @@ if __name__ == "__main__":
         if set_cardSet_flag:
             predict_cardSet = LLM_output2['card_set']
             print("4 获取 card_set: ", predict_cardSet)
-
 
     print('_' * 20)
     print(question_with_image)
