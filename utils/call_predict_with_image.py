@@ -46,7 +46,7 @@ def call_predict_with_image(url, image_path: str, question: str):
         try:
             response = requests.get(image_path, stream=True)
             response.raise_for_status()  # 检查请求是否成功
-            image = Image.open(io.BytesIO(response.content))
+            image = Image.open(io.BytesIO(response.content)).convert("RGB")
             # 将 PIL Image 对象转换为 bytes
             img_byte_arr = io.BytesIO()
             image.save(img_byte_arr, format='JPEG')  # 或其他格式

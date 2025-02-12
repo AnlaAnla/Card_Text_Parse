@@ -5,8 +5,9 @@
       <entry url="file://$PROJECT_DIR$">
         <entryData>
           <resourceRoots>
-            <path value="file://$PROJECT_DIR$/Data" />
+            <path value="file://$PROJECT_DIR$/VectorSearch/Data" />
             <path value="file://$PROJECT_DIR$/Model" />
+            <path value="file://$PROJECT_DIR$/Data" />
           </resourceRoots>
         </entryData>
       </entry>
