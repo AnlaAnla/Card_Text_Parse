@@ -12,15 +12,17 @@ if __name__ == "__main__":
     test_data_csv = pd.read_excel(test_data_csv_path)
 
     # for i in range(0, len(test_data_csv)):
-    for i in range(300):
+    for i in range(302):
         t1 = time.time()
         print("="*20)
         print('第 ', i)
 
-        img_url = "https:" + test_data_csv['img'][i]
+        # img_url = "https:" + test_data_csv['img'][i]
+        # 不用图片了
+        image_url = "Data/temp.jpg"
         ebay_text = test_data_csv['name'][i]
 
-        LLM_output = ebay_text_image_parse(ebay_text, image_url=img_url)
+        LLM_output = ebay_text_image_parse(ebay_text, image_url=image_url)
 
         test_data_csv.at[i, 'year'] = LLM_output['year']
         test_data_csv.at[i, 'program'] = LLM_output['program']

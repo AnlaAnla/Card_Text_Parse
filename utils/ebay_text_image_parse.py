@@ -32,33 +32,27 @@ def match_tag(csv_data, tag, text):
 
 
 def judge_by_vec_search_list(ebay_text: str, vector_list: list[str], pass_word_list: list[str] = None):
+    """
     # 用向量搜索的结果对比原文本
-    '''
-    :param ebay_text:
-    :param vector_list:
-    :param pass_word_list: 搜索文本中忽略这些单词的匹配
-    :return:
-    '''
-    ebay_text = ebay_text.replace('-', ' ')
-    # 根据单词数量从多到少排序
-    vector_list = sorted(vector_list, key=lambda s: len(s.split()), reverse=True)
+    """
+    ebay_text = ebay_text.replace('-', ' ').replace('.', ' ').replace('/', ' ').lower()
+    ebay_words = set(ebay_text.split())
 
-    for i in range(len(pass_word_list)):
-        # 全部小写
-        pass_word_list[i] = pass_word_list[i].lower()
+    # 使用集合推导一次性转换并存储 pass_word_list
+    pass_words = set(word.lower() for word in (pass_word_list or []))  # 处理 None 情况
+
+    # 排序 (只在需要时排序)
+    vector_list.sort(key=lambda s: len(s.split()), reverse=True)
 
     for tag in vector_list:
-        set_program_flag = False
-        for word in tag.split(' '):
-            if word.lower() in pass_word_list or word == '':
-                continue
-
-            if word.lower() in ebay_text.lower().split(' '):
-                set_program_flag = True
-            else:
-                set_program_flag = False
-                break
-        if set_program_flag:
+        tag_words = tag.lower().split()
+        # all() 和生成器表达式，简洁高效, 检查生成器表达式中的所有条件是否都为 True。
+        if all(
+            word in ebay_words
+            or (word.rstrip("s") in ebay_words)
+            or (word + "s" in ebay_words)  # 处理 prizm 和 prizms 之类的字符
+            for word in tag_words if word and word not in pass_words
+        ):
             return tag
     return False
 
@@ -79,26 +73,41 @@ def get_vec_search_judge_result(vec_search_url: str, ebay_text: str, vec_text: s
 
 
 def judge_tag_in_text(ebay_text: str, tag: str, pass_word_list: list = None):
-    for i in range(len(pass_word_list)):
-        # 全部小写
-        pass_word_list[i] = pass_word_list[i].lower()
+    ebay_text = ebay_text.replace('-', ' ').replace('.', ' ').replace('/', ' ').lower()
+    ebay_words = set(ebay_text.split())
 
-    is_include_flag = False
-    for word in tag.split(' '):
-        if word.lower() in pass_word_list or word == '':
-            continue
+    # 使用集合推导一次性转换并存储 pass_word_list
+    pass_words = set(word.lower() for word in (pass_word_list or []))  # 处理 None 情况
+    tag_words = tag.lower().split()
+    if all(
+        word in ebay_words
+        or (word.rstrip("s") in ebay_words)
+        or (word + "s" in ebay_words)  # 处理 prizm 和 prizms 之类的字符
+        for word in tag_words if word and word not in pass_words
+    ):
+        return True
+    return False
 
-        if word.lower() in ebay_text.lower().split(' '):
-            is_include_flag = True
-        else:
-            is_include_flag = False
-            break
-    return is_include_flag
+    # for i in range(len(pass_word_list)):
+    #     # 全部小写
+    #     pass_word_list[i] = pass_word_list[i].lower()
+
+    # is_include_flag = False
+    # for word in tag.split(' '):
+    #     if word.lower() in pass_word_list or word == '':
+    #         continue
+    #
+    #     if word.lower() in ebay_text.lower().split(' '):
+    #         is_include_flag = True
+    #     else:
+    #         is_include_flag = False
+    #         break
+    # return is_include_flag
 
 
 def ebay_text_image_parse(ebay_text, image_url):
     program_pass_word_list = ['the', 'and']
-    cardSet_pass_word_list = ['base', 'set', '-']
+    cardSet_pass_word_list = ['base', 'and', 'set', '-']
 
     # 预处理去掉一个Panini
     ebay_text = re.sub(re.escape("Panini"), '', ebay_text, count=1, flags=re.IGNORECASE)
@@ -203,7 +212,7 @@ def ebay_text_image_parse(ebay_text, image_url):
         vec_text = vec_text.replace('#', '')
     if predict_athlete != '':
         # vec_text = vec_text.replace(predict_athlete, '')
-        vec_text = re.sub(re.escape(predict_athlete), '', vec_text, flags=re.IGNORECASE)
+        vec_text = re.sub(re.escape(predict_athlete), '', vec_text, count=1,flags=re.IGNORECASE)
 
     # 在这里根据 program 和 card_set 的有无分为三种情况
     if predict_program == '' and predict_cardSet == '':
@@ -216,7 +225,7 @@ def ebay_text_image_parse(ebay_text, image_url):
         # 如果存在 program 那么从文本里去除 program
         if predict_program != '':
             # vec_text = vec_text.replace(predict_program, '').strip()
-            vec_text = re.sub(re.escape(predict_program), '', vec_text, flags=re.IGNORECASE).strip()
+            vec_text = re.sub(re.escape(predict_program), '', vec_text, count=1,flags=re.IGNORECASE).strip()
             print('vec_text [去除program]: ', vec_text)
 
         predict_cardSet = get_vec_search_judge_result(vec_search_url=VEC_SEARCH_CARD_SET_API_URL,
@@ -226,7 +235,7 @@ def ebay_text_image_parse(ebay_text, image_url):
 
     elif predict_program == '' and predict_cardSet != '':
         # vec_text = vec_text.replace(predict_cardSet, '').strip()
-        vec_text = re.sub(re.escape(predict_cardSet), '', vec_text, flags=re.IGNORECASE).strip()
+        vec_text = re.sub(re.escape(predict_cardSet), '', vec_text, count=1,flags=re.IGNORECASE).strip()
         print('vec_text [去除cardSet]: ', vec_text)
         predict_program = get_vec_search_judge_result(vec_search_url=VEC_SEARCH_PROGRAM_API_URL,
                                                       ebay_text=ebay_text,
@@ -234,7 +243,7 @@ def ebay_text_image_parse(ebay_text, image_url):
                                                       pass_word_list=program_pass_word_list)
     else:
         # vec_text = vec_text.replace(predict_program, '').strip()
-        vec_text = re.sub(re.escape(predict_program), '', vec_text, flags=re.IGNORECASE).strip()
+        vec_text = re.sub(re.escape(predict_program), '', vec_text, count=1,flags=re.IGNORECASE).strip()
         print('vec_text [去除program]: ', vec_text)
         predict_cardSet = get_vec_search_judge_result(vec_search_url=VEC_SEARCH_CARD_SET_API_URL,
                                                       ebay_text=ebay_text,
