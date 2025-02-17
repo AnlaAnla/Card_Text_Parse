@@ -9,7 +9,7 @@ image_text_prompt = """你是一个专业的体育卡牌数据解析助手。请
 
 1. 字段说明(输出字段必须为以下名称)：
    - year: 年份(取前四位数字，如'2023-24'取2023)
-   - program: 卡系列(例如 Aficionado/Prominence/Honors/Playoffs/Kobe Bryant Box Set/Momentum/Hoops/Leather and Lumber/Court Kings/Contenders Draft Picks /Cooperstown/Gala/Complete/Vertex/Innovation/Luminance/PhotoGenic/Diamond Kings/Prizm)
+   - program: 卡系列(例如 Select/Honors/Playoffs/Momentum/Hoops/Leather and Lumber/Court Kings/Contenders Draft Picks /Cooperstown/Gala/Complete/Vertex/Innovation/Luminance/PhotoGenic/Diamond Kings/Prizm)
    - card_set: 卡种(卡系列后的第一个主要特征短语)
    - card_num: 卡编号(以#开头的最早出现的连续字符)
    - athlete: 球员名称(最后出现的人名，需包含姓和名)
@@ -19,6 +19,7 @@ image_text_prompt = """你是一个专业的体育卡牌数据解析助手。请
    - 忽略括号内内容和特殊标记(如RC/SP)
    - 保持原始文本顺序，不要重组内容
    - 优先匹配卡系列列表，未匹配到则留空
+   - 注意 Panini 不属于 program 
    - **优先从图片中提取各个字段信息, 如果图片中信息不全, 则从文本中提取**
 
 3. 示例：

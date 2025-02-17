@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from PIL import Image
 import io
@@ -13,6 +14,7 @@ import asyncio
 import concurrent.futures
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
+import re  # 导入正则表达式模块
 
 # 模型和处理器 (全局变量，只加载一次)
 model_path = r"D:\Code\ML\Model\huggingface\Janus-Pro-7B"
@@ -31,6 +33,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源 (开发时可以这样，生产环境要限制)
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有方法 (GET, POST, PUT, DELETE, OPTIONS, ...)
+    allow_headers=["*"],  # 允许所有头部
+)
+
+
+
 # 定义响应体模型
 class CardInfoResponse(BaseModel):
     year: str
@@ -38,7 +50,6 @@ class CardInfoResponse(BaseModel):
     card_set: str
     card_num: str
     athlete: str
-
 
 
 async def load_model_and_processor():
@@ -68,10 +79,12 @@ def _load_model_sync():
         device_map="auto",
     )
     vl_gpt = vl_gpt.eval()
+    vl_gpt = torch.compile(vl_gpt)
 
 
 @app.post("/predict_with_image/", response_model=CardInfoResponse)
 async def predict_with_image(image: UploadFile = File(...), question: str = Form(...)):
+    empty_result = '''{"year":"","program":"","card_set":"","card_num":"","athlete":""}'''
     try:
         # 保存上传的图片
         contents = await image.read()
@@ -104,31 +117,81 @@ async def predict_with_image(image: UploadFile = File(...), question: str = Form
                 pad_token_id=vl_chat_processor.tokenizer.eos_token_id,
                 bos_token_id=vl_chat_processor.tokenizer.bos_token_id,
                 eos_token_id=vl_chat_processor.tokenizer.eos_token_id,
-                max_new_tokens=512,
+                max_new_tokens=128,
                 do_sample=False,
                 use_cache=True,
             )
 
         # 解码回复
         answer = vl_chat_processor.tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
+        print(answer)
 
         # 删除临时图片
         os.remove(image_path)  # 确保删除
 
-        return eval(answer)
-
+        # 使用更健壮的 JSON 解析 (与 predict_text_only 相同)
+        try:
+            answer_json = json.loads(answer)
+        except json.JSONDecodeError as e:
+            print('json.JSONDecodeError:', e)
+            # 更健壮的 JSON 提取 (尝试多种方法)
+            try:
+                # 方法 1: 查找 "{...}"
+                start = answer.find("{")
+                end = answer.rfind("}") + 1
+                json_str = answer[start:end]
+                answer_json = json.loads(json_str)
+            except Exception as e:
+                print('json.JSONDecodeError:', e)
+                # 方法 2:  (如果模型输出 "输出：{...}" 或类似的格式)
+                try:
+                    match = re.search(r'\{.*\}', answer)  # 使用正则表达式查找 {}
+                    if match:
+                        json_str = match.group(0)
+                        answer_json = json.loads(json_str)
+                    else:
+                        answer_json = empty_result
+                except Exception as e:
+                    print('json.JSONDecodeError:', e)
+                    answer_json = empty_result
     except Exception as e:
-        return HTTPException({"error": str(e)}, status_code=500)
+        print('Exception', e)
+        answer_json = empty_result
 
+    return answer_json
+
+text_prompt = """你是一个专业的体育卡牌数据解析助手。请严格按照以下规则, 从文本中提取卡牌信息，输出JSON格式结果：
+**绝对不要包含任何其他文本、解释、问候语或对话。只输出 JSON 对象。**
+
+1. 字段说明(输出字段必须为以下名称)：
+   - year: 年份(取前四位数字，如'2023-24'取2023)
+   - program: 卡系列(例如 Aficionado/Prominence/Honors/Playoffs/Kobe Bryant Box Set/Momentum/Hoops/Leather and Lumber/Court Kings/Contenders Draft Picks /Cooperstown/Gala/Complete/Vertex/Innovation/Luminance/PhotoGenic/Diamond Kings/Prizm)
+   - card_set: 卡种(卡系列后的第一个主要特征短语)
+   - card_num: 卡编号(以#开头的最早出现的连续字符)
+   - athlete: 球员名称(最后出现的人名，需包含姓和名)
+
+2. 处理规则：
+   - 字段不存在时设为空字符串
+   - 忽略括号内内容和特殊标记(如RC/SP)
+   - 保持原始文本顺序，不要重组内容
+   - 优先匹配卡系列列表，未匹配到则留空
+
+3. 示例：
+Bryan Bresee 2023 Donruss Optic #276 Purple Shock RC New Orleans Saints
+{"year":"2023","program":"Donruss Optic","card_set":"Purple Shock","card_num":"276","athlete":"Bryan Bresee"}
+
+"""
 
 @app.post("/predict_text_only/")
 async def predict_text_only(question: str = Form(...)):
+
+    empty_result = '''{"year":"","program":"","card_set":"","card_num":"","athlete":""}'''
     try:
         # 构建对话
         conversation = [
             {
                 "role": "<|User|>",
-                "content": f"{question}",
+                "content": f"{text_prompt}\n{question}",
                 "images": [],  # 没有图片
             },
             {"role": "<|Assistant|>", "content": ""},
@@ -141,7 +204,6 @@ async def predict_text_only(question: str = Form(...)):
         encoded_input = vl_chat_processor.tokenizer(conversation[0]["content"], return_tensors="pt").to(vl_gpt.device)
         input_ids = encoded_input["input_ids"]
         attention_mask = encoded_input["attention_mask"]
-
 
         with torch.no_grad():
             outputs = vl_gpt.language_model.generate(
@@ -157,10 +219,11 @@ async def predict_text_only(question: str = Form(...)):
         answer = vl_chat_processor.tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
         print(answer)
 
-        # 尝试解析 JSON (并包含更健壮的错误处理)
+        # 使用更健壮的 JSON 解析 (与 predict_text_only 相同)
         try:
             answer_json = json.loads(answer)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            print('json.JSONDecodeError:', e)
             # 更健壮的 JSON 提取 (尝试多种方法)
             try:
                 # 方法 1: 查找 "{...}"
@@ -168,26 +231,27 @@ async def predict_text_only(question: str = Form(...)):
                 end = answer.rfind("}") + 1
                 json_str = answer[start:end]
                 answer_json = json.loads(json_str)
-            except:
+            except Exception as e:
+                print('json.JSONDecodeError:', e)
                 # 方法 2:  (如果模型输出 "输出：{...}" 或类似的格式)
                 try:
-                    import re  # 导入正则表达式模块
                     match = re.search(r'\{.*\}', answer)  # 使用正则表达式查找 {}
                     if match:
                         json_str = match.group(0)
                         answer_json = json.loads(json_str)
                     else:
-                        answer_json = {"error": "Failed to decode JSON", "raw_answer": answer}
-                except:
-                    answer_json = {"error": "Failed to decode JSON", "raw_answer": answer}
-
-        return JSONResponse({"answer": answer_json})
-
+                        answer_json = empty_result
+                except Exception as e:
+                    print('json.JSONDecodeError:', e)
+                    answer_json = empty_result
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        print('Exception', e)
+        answer_json = empty_result
+
+    return answer_json
 
 
 if __name__ == '__main__':
     import uvicorn
 
-    uvicorn.run(app, host='127.0.0.1', port=9001)
+    uvicorn.run(app, host='0.0.0.0', port=9001)
