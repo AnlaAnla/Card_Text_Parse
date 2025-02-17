@@ -39,6 +39,7 @@ def judge_by_vec_search_list(ebay_text: str, vector_list: list[str], pass_word_l
     :param pass_word_list: 搜索文本中忽略这些单词的匹配
     :return:
     '''
+    ebay_text = ebay_text.replace('-', ' ')
     # 根据单词数量从多到少排序
     vector_list = sorted(vector_list, key=lambda s: len(s.split()), reverse=True)
 
@@ -97,14 +98,10 @@ def judge_tag_in_text(ebay_text: str, tag: str, pass_word_list: list = None):
 
 def ebay_text_image_parse(ebay_text, image_url):
     program_pass_word_list = ['the', 'and']
-    cardSet_pass_word_list = ['base']
+    cardSet_pass_word_list = ['base', 'set', '-']
 
     # 预处理去掉一个Panini
-    remove_str_list = ['Panini', 'PANINI', 'panini']
-    for remove_str in remove_str_list:
-        if remove_str in ebay_text:
-            ebay_text = ebay_text.replace(remove_str, '', 1)
-            break
+    ebay_text = re.sub(re.escape("Panini"), '', ebay_text, count=1, flags=re.IGNORECASE)
 
     # 1 获取年份和编号
     preprocess_year_num_data = preprocess_year_num(ebay_text)
@@ -181,6 +178,10 @@ def ebay_text_image_parse(ebay_text, image_url):
         if predict_cardSet != '':
             print("3 获取 card_set: ", predict_cardSet)
 
+    # 二次验证card_set, 临时存储数据
+    temp_save_cardSet = predict_cardSet
+    predict_cardSet = ''
+
     if predict_program != '' and predict_cardSet != '':
         LLM_output['program'] = predict_program
         LLM_output['card_set'] = predict_cardSet
@@ -201,7 +202,8 @@ def ebay_text_image_parse(ebay_text, image_url):
         vec_text = vec_text.replace(preprocess_year_num_data['card_num'], '')
         vec_text = vec_text.replace('#', '')
     if predict_athlete != '':
-        vec_text = vec_text.replace(predict_athlete, '')
+        # vec_text = vec_text.replace(predict_athlete, '')
+        vec_text = re.sub(re.escape(predict_athlete), '', vec_text, flags=re.IGNORECASE)
 
     # 在这里根据 program 和 card_set 的有无分为三种情况
     if predict_program == '' and predict_cardSet == '':
@@ -213,7 +215,8 @@ def ebay_text_image_parse(ebay_text, image_url):
 
         # 如果存在 program 那么从文本里去除 program
         if predict_program != '':
-            vec_text = vec_text.replace(predict_program, '').strip()
+            # vec_text = vec_text.replace(predict_program, '').strip()
+            vec_text = re.sub(re.escape(predict_program), '', vec_text, flags=re.IGNORECASE).strip()
             print('vec_text [去除program]: ', vec_text)
 
         predict_cardSet = get_vec_search_judge_result(vec_search_url=VEC_SEARCH_CARD_SET_API_URL,
@@ -222,14 +225,16 @@ def ebay_text_image_parse(ebay_text, image_url):
                                                       pass_word_list=cardSet_pass_word_list)
 
     elif predict_program == '' and predict_cardSet != '':
-        vec_text = vec_text.replace(predict_cardSet, '').strip()
+        # vec_text = vec_text.replace(predict_cardSet, '').strip()
+        vec_text = re.sub(re.escape(predict_cardSet), '', vec_text, flags=re.IGNORECASE).strip()
         print('vec_text [去除cardSet]: ', vec_text)
         predict_program = get_vec_search_judge_result(vec_search_url=VEC_SEARCH_PROGRAM_API_URL,
                                                       ebay_text=ebay_text,
                                                       vec_text=vec_text,
                                                       pass_word_list=program_pass_word_list)
     else:
-        vec_text = vec_text.replace(predict_program, '').strip()
+        # vec_text = vec_text.replace(predict_program, '').strip()
+        vec_text = re.sub(re.escape(predict_program), '', vec_text, flags=re.IGNORECASE).strip()
         print('vec_text [去除program]: ', vec_text)
         predict_cardSet = get_vec_search_judge_result(vec_search_url=VEC_SEARCH_CARD_SET_API_URL,
                                                       ebay_text=ebay_text,
@@ -242,8 +247,13 @@ def ebay_text_image_parse(ebay_text, image_url):
     # print('LLM2:', LLM_output2)
 
     LLM_output['program'] = predict_program
-    LLM_output['card_set'] = predict_cardSet
+
+    if len(predict_cardSet) > len(temp_save_cardSet):
+        LLM_output['card_set'] = predict_cardSet
+    else:
+        LLM_output['card_set'] = temp_save_cardSet
 
     print('++++结果++++: ', LLM_output)
+    print('==' * 18)
 
     return LLM_output

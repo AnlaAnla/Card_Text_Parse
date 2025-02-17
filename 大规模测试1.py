@@ -12,7 +12,7 @@ if __name__ == "__main__":
     test_data_csv = pd.read_excel(test_data_csv_path)
 
     # for i in range(0, len(test_data_csv)):
-    for i in range(302):
+    for i in range(300):
         t1 = time.time()
         print("="*20)
         print('第 ', i)
