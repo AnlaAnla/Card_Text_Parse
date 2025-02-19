@@ -17,10 +17,31 @@ program_cardSet_athlete_data = pd.read_csv("Data\program_cardSet_athlete.csv")
 
 
 def preprocess_year_num(text):
-    year_match = re.search(r'\b(20\d{2})(?:-\d{2})?\b', text)
+    # 尝试匹配 "20xx-yy"、"20xx" 或 "xx-yy" 格式的年份
+    year_match = re.search(r'\b(20\d{2})-(\d{2})\b|\b(20\d{2})\b|\b(\d{2})-(\d{2})\b', text)
     num_match = re.search(r'#([A-Za-z0-9\-]+)', text)
+
+    if year_match:
+        # "20xx-yy" 格式 (group 1 和 2)
+        if year_match.group(1):
+            year = year_match.group(1)
+        # "20xx" 格式 (group 3)
+        elif year_match.group(3):
+            year = year_match.group(3)
+        # "xx-yy" 格式 (group 4 和 5)
+        elif year_match.group(4):
+            year = "20" + year_match.group(4)  # 添加 "20" 前缀
+            # 简单检查，防止 "99-00" 这样的情况被错误处理
+            if int(year) > 2099 or int(year) < 2000:
+                year = ""
+
+        else:
+            year = ""
+    else:
+        year = ""
+
     return {
-        'year': year_match.group(1) if year_match else "",
+        'year': year,
         'card_num': num_match.group(1) if num_match else ""
     }
 
@@ -206,7 +227,9 @@ def ebay_text_image_parse(ebay_text, image_url):
     vec_text = ebay_text
     if preprocess_year_num_data['year'] != '':
         # 消除年份, 这样可以消除 2023-24 这种格式
-        vec_text = vec_text.replace(re.search(r'\b(20\d{2})(?:-\d{2})?\b', vec_text).group(), '').strip()
+        vec_text = (vec_text
+                    .replace(re.search(r'\b(20\d{2})-(\d{2})\b|\b(20\d{2})\b|\b(\d{2})-(\d{2})\b', vec_text)
+                             .group(), '').strip())
     if preprocess_year_num_data['card_num'] != '':
         vec_text = vec_text.replace(preprocess_year_num_data['card_num'], '')
         vec_text = vec_text.replace('#', '')

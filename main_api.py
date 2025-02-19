@@ -13,7 +13,7 @@ from utils.program_cardSet_vecSearch import text_vecSearch
 from utils.ebay_text_image_parse import ebay_text_image_parse
 
 app = FastAPI()
-
+request_num = 0
 # 跨域解决
 app.add_middleware(
     CORSMiddleware,
@@ -26,22 +26,31 @@ app.add_middleware(
 
 class InputData(BaseModel):
     ebay_text: str
-    image_url: str
+    # image_url: str
 
 
 @app.post("/parse_ebay_data/")
 async def parse_ebay_data(input_data: InputData):
     """
-    接收 ebay_text 和 image_url, 返回json字段
+    接收 ebay_text, 返回json字段
     样例
     ebay_text = "2021-22 Panini Prizm Red Ice Prizm Tim Duncan #268 HOF"
-    image_url = "https://i.ebayimg.com/images/g/WdUAAOSw2jhmy8s7/s-l1200.jpg"
     """
+    global request_num
+    request_num += 1
     try:
-        print('input data: ', input_data)
-        llm_output = ebay_text_image_parse(input_data.ebay_text, input_data.image_url)
+        print(
+            f'''
+    ======================================
+    | 接收的请求数量: [{request_num}]        |
+    ======================================
+            '''
+              )
+        print('||||---- input data: ', input_data)
 
-        print('return data: ', llm_output)
+        llm_output = ebay_text_image_parse(input_data.ebay_text, "Data/temp.jpg")
+
+        print('||||---- return data: ', llm_output)
         return llm_output
     except Exception as e:
         # 更好的错误处理，可以记录更详细的错误信息

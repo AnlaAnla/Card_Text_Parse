@@ -7,7 +7,7 @@ import os
 
 app = FastAPI()
 
-model = SentenceTransformer('BAAI/bge-large-en-v1.5')  # 或其他模型
+model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')  # 或其他模型
 program_vec_data = None
 program_name_list = None
 cardSet_vec_data = None

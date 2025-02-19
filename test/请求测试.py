@@ -1,13 +1,14 @@
 import requests
 import json
+import time
 
 
-api_url = "http://172.24.144.1:9000/parse_ebay_data"
-ebay_text = "2021-22 Panini Prizm Red Ice Prizm Tim Duncan #268 HOF"
-image_url = "https://i.ebayimg.com/images/g/WdUAAOSw2jhmy8s7/s-l1200.jpg"
+api_url = "http://192.168.31.146:9000/parse_ebay_data"
+ebay_text = "2023-24 Panini Mosaic Prizm Bank Shot #10 Kevin Durant Phoenix Suns"
 
-data = {"ebay_text": ebay_text, "image_url": image_url}
+data = {"ebay_text": ebay_text}
 
-
+t1 = time.time()
 response = requests.post(api_url, data=json.dumps(data))
 print(response.json())
+print('time cost: ', time.time()-t1)
