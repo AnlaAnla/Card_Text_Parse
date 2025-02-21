@@ -10,7 +10,7 @@ import re
 from utils.call_predict_with_image import call_predict_with_image
 from utils.call_predict_with_image2 import call_predict_with_image2
 from utils.program_cardSet_vecSearch import text_vecSearch
-from utils.ebay_text_image_parse import ebay_text_image_parse
+from utils.ebay_text_image_parse import ebay_text_image_parse_LLM, ebay_text_image_parse
 
 app = FastAPI()
 request_num = 0
@@ -26,7 +26,33 @@ app.add_middleware(
 
 class InputData(BaseModel):
     ebay_text: str
-    # image_url: str
+
+@app.post("/parse_ebay_data_LLM/")
+async def parse_ebay_data_LLM(input_data: InputData):
+    """
+    接收 ebay_text, 返回json字段
+    样例
+    ebay_text = "2021-22 Panini Prizm Red Ice Prizm Tim Duncan #268 HOF"
+    """
+    global request_num
+    request_num += 1
+    try:
+        print(
+            f'''
+    ======================================
+    | 接收的请求数量: [{request_num}]        |
+    ======================================
+            '''
+              )
+        print('||||---- input data: ', input_data)
+
+        llm_output = ebay_text_image_parse_LLM(input_data.ebay_text, "Data/temp.jpg")
+
+        print('||||---- return data: ', llm_output)
+        return llm_output
+    except Exception as e:
+        # 更好的错误处理，可以记录更详细的错误信息
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 @app.post("/parse_ebay_data/")
@@ -48,10 +74,10 @@ async def parse_ebay_data(input_data: InputData):
               )
         print('||||---- input data: ', input_data)
 
-        llm_output = ebay_text_image_parse(input_data.ebay_text, "Data/temp.jpg")
+        output = ebay_text_image_parse(input_data.ebay_text)
 
-        print('||||---- return data: ', llm_output)
-        return llm_output
+        print('||||---- return data: ', output)
+        return output
     except Exception as e:
         # 更好的错误处理，可以记录更详细的错误信息
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")

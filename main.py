@@ -1,5 +1,5 @@
 import requests
-from utils.ebay_text_image_parse import ebay_text_image_parse
+from utils.ebay_text_image_parse import ebay_text_image_parse_LLM
 import time
 
 if __name__ == "__main__":
@@ -8,5 +8,5 @@ if __name__ == "__main__":
     image_url = "Data/temp.jpg"
 
     t1 = time.time()
-    LLM_output = ebay_text_image_parse(ebay_text=ebay_text, image_url=image_url)
+    LLM_output = ebay_text_image_parse_LLM(ebay_text=ebay_text, image_url=image_url)
     print('time cost: ', time.time() - t1)

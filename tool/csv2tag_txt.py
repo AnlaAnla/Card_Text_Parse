@@ -9,13 +9,13 @@ for filename in os.listdir(check_list_dir):
     data = pd.read_csv(file_path, low_memory=False)
     data_list = list(data['team'].dropna().unique())
 
-    for item in data_list:
-        if 'Diego Lugano' in item:
-            print(filename)
+    # for item in data_list:
+    #     if 'Diego Lugano' in item:
+    #         print(filename)
 
-#     print(f"{filename}: {len(data_list)}")
-#     program_list += data_list
-#
+    # print(f"{filename}: {len(data_list)}")
+    # program_list += data_list
+
 # print('merge data: ', len(program_list))
 # new_program_list = []
 #

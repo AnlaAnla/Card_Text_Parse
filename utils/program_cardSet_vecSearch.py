@@ -8,7 +8,7 @@ def text_vecSearch(url, text, top_k=5):
     response = requests.post(url, json=data, headers=headers)
 
     if response.status_code == 200:
-        print(response.json())
+        # print(response.json())
         result_list = []
         data = response.json()['results']
         for item in data:

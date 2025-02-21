@@ -9,7 +9,7 @@ VEC_SEARCH_PROGRAM_API_URL = Config['VEC_SEARCH_PROGRAM_API_URL']
 VEC_SEARCH_CARD_SET_API_URL = Config['VEC_SEARCH_CARD_SET_API_URL']
 
 
-ebay_text = "Haunted Hoops Slime  Parallel Memphis Grizzlies"
+ebay_text = " Purple Parallel  Optic Basketball Los Angeles Lakers"
 
 data = {"ebay_text": ebay_text}
 

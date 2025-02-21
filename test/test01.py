@@ -1,36 +1,28 @@
-def judge_by_vec_search_list(ebay_text: str, vector_list: list[str], pass_word_list: list[str] = None):
-    # 用向量搜索的结果对比原文本
-    '''
-    :param ebay_text:
-    :param vector_list:
-    :param pass_word_list: 搜索文本中忽略这些单词的匹配
-    :return:
-    '''
-    # 根据单词数量从多到少排序
-    vector_list = sorted(vector_list, key=lambda s: len(s.split()), reverse=True)
 
-    # # 全部小写
-    for i in range(len(pass_word_list)):
-        pass_word_list[i] = pass_word_list[i].lower()
+def sort_tags_by_text_position(text, tag_list):
+    """
+    根据 tag_list 中的 tag 在 text 中出现的先后顺序进行排序。
 
-    for program in vector_list:
-        set_program_flat = False
-        for word in program.split(' '):
-            if word.lower() in pass_word_list or word == '':
-                continue
+    Args:
+        text: 要搜索的文本字符串。
+        tag_list: 要排序的标签列表。
 
-            if word.lower() in ebay_text.lower().split(' '):
-                set_program_flat = True
-            else:
-                set_program_flat = False
-                break
-        if set_program_flat:
-            return program
-    return False
+    Returns:
+        排序后的标签列表。
+    """
 
+    # 创建一个字典来存储每个 tag 的信息：{tag: (start_index, length)}
+    tag_info = {}
+    for tag in tag_list:
+        start_index = text.find(tag)
+        if start_index != -1:  # 只有在 text 中找到 tag 才添加
+            tag_info[tag] = (start_index, len(tag))
 
-vec_list = ['Base Red Cracked Ice Prizm', 'Base Red Ice Prizm', 'Base Prizm Red Ice', 'Brilliance Prizms Red Ice', 'Base Prizms Red Ice', 'All American Prizms Red Ice', 'Fearless Prizms Red Ice', 'Base Hoops Tribute Red Cracked Ice Prizm', 'Flashback Autographs Prizms Red Ice', 'Rookies Prizm Red Ice']
+    # 根据 start_index（出现位置）升序排序，如果 start_index 相同，则根据 length（长度）降序排序
+    sorted_tags = sorted(tag_info.keys(), key=lambda tag: (tag_info[tag][0], -tag_info[tag][1]))
 
-print(judge_by_vec_search_list(ebay_text="2021-22 Panini Prizm Red Ice Prizm Tim Duncan #268 HOF",
-                               vector_list=vec_list,
-                               pass_word_list=['base']))
+    return sorted_tags
+
+text = "Photogenic Tobias Harris Wedges /49"
+tag_list = ['PhotoGenic']
+print(sort_tags_by_text_position(text, tag_list))
