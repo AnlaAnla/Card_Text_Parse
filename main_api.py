@@ -27,6 +27,7 @@ app.add_middleware(
 class InputData(BaseModel):
     ebay_text: str
 
+
 @app.post("/parse_ebay_data_LLM/")
 async def parse_ebay_data_LLM(input_data: InputData):
     """
@@ -43,7 +44,7 @@ async def parse_ebay_data_LLM(input_data: InputData):
     | 接收的请求数量: [{request_num}]        |
     ======================================
             '''
-              )
+        )
         print('||||---- input data: ', input_data)
 
         llm_output = ebay_text_image_parse_LLM(input_data.ebay_text, "Data/temp.jpg")
@@ -71,7 +72,7 @@ async def parse_ebay_data(input_data: InputData):
     | 接收的请求数量: [{request_num}]        |
     ======================================
             '''
-              )
+        )
         print('||||---- input data: ', input_data)
 
         output = ebay_text_image_parse(input_data.ebay_text)

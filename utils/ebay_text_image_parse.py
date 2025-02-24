@@ -25,7 +25,11 @@ def judge_by_search_list(ebay_text: str, search_list: list[str], pass_word_list:
     """
     # 用搜索的结果列表对比原文本
     """
-    ebay_text = ebay_text.replace('-', ' ').replace('.', ' ').replace('/', ' ').lower()
+    ebay_text = (ebay_text.replace('-', ' ')
+                 .replace('.', ' ')
+                 .replace('/', ' ')
+                 .replace('’', ' ')
+                 .lower())
     ebay_words = set(ebay_text.split())
 
     # 使用集合推导一次性转换并存储 pass_word_list
@@ -39,6 +43,7 @@ def judge_by_search_list(ebay_text: str, search_list: list[str], pass_word_list:
         temp_tag = tag
         tag = (tag.replace('.', ' ')
                .replace("'", ' ')
+               .replace('’', ' ')
                .replace('-', ' ')
                .strip())
         tag_words = tag.lower().split()
@@ -56,7 +61,9 @@ def judge_by_search_list(ebay_text: str, search_list: list[str], pass_word_list:
 
 
 def get_vec_search_judge_result(vec_search_url: str, ebay_text: str, vec_text: str,
-                                pass_word_list: list[str] = None, left_priority=False):
+                                pass_word_list: list[str] = None,
+                                left_priority=False,
+                                top_k=15):
     '''
     :param vec_search_url:
     :param ebay_text:
@@ -65,7 +72,7 @@ def get_vec_search_judge_result(vec_search_url: str, ebay_text: str, vec_text: s
     :param left_priority: 针对program的, 如果有多个合适选项, 优先选最左边的
     :return:
     '''
-    top_k_list = text_vecSearch(vec_search_url, vec_text, top_k=10)
+    top_k_list = text_vecSearch(vec_search_url, vec_text, top_k=top_k)
     print(top_k_list)
     # program 严格判断
     tag_list = judge_by_search_list(ebay_text=ebay_text,
@@ -99,8 +106,13 @@ def judge_tag_in_text(ebay_text: str, tag: str, pass_word_list: list = None):
     return False
 
 
-def fuzz_search_by_checklist(checklist, checklist_input, ebay_text, compare_text, pass_word_list: list = None):
-    filtered_data_list = list(filter_dataframe_optimized(checklist, checklist_input)['card_set'])
+def fuzz_search_by_checklist(checklist, ebay_text, compare_text, tag_name,
+                             checklist_filter_data=None, pass_word_list: list = None):
+
+    if checklist_filter_data is not None:
+        filtered_data_list = list(filter_dataframe_optimized(checklist, checklist_filter_data)[tag_name])
+    else:
+        filtered_data_list = list(checklist[tag_name].dropna().unique())
     # 进行模糊搜索
     print('fuzz search text: [', compare_text, ']---|filter_len: ', len(filtered_data_list))
     matches_list = process.extract(query=compare_text,
@@ -292,6 +304,9 @@ def ebay_text_image_parse(ebay_text):
 
     # 预处理去掉一个Panini
     ebay_text = re.sub(re.escape("Panini"), '', ebay_text, count=1, flags=re.IGNORECASE)
+    # 预处理常见错字
+    ebay_text = re.sub(re.escape("Mosiac"), 'Mosaic', ebay_text, flags=re.IGNORECASE)
+
 
     # 1 获取年份和编号
     preprocess_year_num_data = preprocess_year_num(ebay_text)
@@ -312,7 +327,15 @@ def ebay_text_image_parse(ebay_text):
     print('vec_text: ', vec_text)
     predict_athlete = get_vec_search_judge_result(vec_search_url=VEC_SEARCH_ATHLETE_API_URL,
                                                   ebay_text=ebay_text,
-                                                  vec_text=vec_text)
+                                                  vec_text=vec_text,
+                                                  top_k=15)
+    if predict_athlete == '':
+        predict_athlete = fuzz_search_by_checklist(checklist=checklist_2023,
+                                                   ebay_text=vec_text,
+                                                   compare_text=vec_text,
+                                                   tag_name="athlete_new",
+                                                   pass_word_list=cardSet_pass_word_list,
+                                                   checklist_filter_data=None)
 
     if predict_athlete != '':
         vec_text = re.sub(re.escape(predict_athlete), '', vec_text, count=1, flags=re.IGNORECASE)
@@ -324,17 +347,13 @@ def ebay_text_image_parse(ebay_text):
                                                   ebay_text=ebay_text,
                                                   vec_text=vec_text,
                                                   pass_word_list=program_pass_word_list,
-                                                  left_priority=True)
+                                                  left_priority=True,
+                                                  top_k=25)
 
     # 如果存在 program 那么从文本里去除 program
     if predict_program != '':
         vec_text = re.sub(re.escape(predict_program), '', vec_text, count=1, flags=re.IGNORECASE).strip()
         print('vec_text [去除program]: ', vec_text)
-
-    predict_cardSet = get_vec_search_judge_result(vec_search_url=VEC_SEARCH_CARD_SET_API_URL,
-                                                  ebay_text=ebay_text,
-                                                  vec_text=vec_text,
-                                                  pass_word_list=cardSet_pass_word_list)
 
     # 4 根据checklist 重新筛选card_set
     checklist_input = {
@@ -343,6 +362,7 @@ def ebay_text_image_parse(ebay_text):
         "athlete_new": predict_athlete
     }
     # 当上面条件满足其2的适合才进行二次搜索
+    predict_cardSet = ''
     research_flag = 0
     if predict_program != '':
         research_flag += 1
@@ -352,18 +372,20 @@ def ebay_text_image_parse(ebay_text):
         research_flag += 1
 
     if research_flag >= 2:
-        predict_cardSet2 = fuzz_search_by_checklist(checklist=checklist_2023,
-                                                    checklist_input=checklist_input,
-                                                    ebay_text=ebay_text,
-                                                    compare_text=vec_text,
-                                                    pass_word_list=cardSet_pass_word_list)
-        print('predict_cardSet2: ', predict_cardSet2)
+        predict_cardSet = fuzz_search_by_checklist(checklist=checklist_2023,
+                                                   checklist_filter_data=checklist_input,
+                                                   ebay_text=ebay_text,
+                                                   compare_text=vec_text,
+                                                   tag_name="card_set",
+                                                   pass_word_list=cardSet_pass_word_list)
+        print('predict_cardSet: ', predict_cardSet)
 
-        if predict_cardSet2 != '':
-            if len(predict_cardSet2.split(' ')) > len(predict_cardSet.split(' ')):
-                predict_cardSet = predict_cardSet2
-                print(predict_cardSet, ' ---> ', predict_cardSet2)
-
+    if predict_cardSet == '':
+        predict_cardSet = get_vec_search_judge_result(vec_search_url=VEC_SEARCH_CARD_SET_API_URL,
+                                                      ebay_text=ebay_text,
+                                                      vec_text=vec_text,
+                                                      pass_word_list=cardSet_pass_word_list)
+        print('模糊搜索失败, 向量搜索: ', predict_cardSet)
 
     output = {
         'year': preprocess_year_num_data['year'],

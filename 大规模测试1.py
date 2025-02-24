@@ -8,7 +8,7 @@ if __name__ == "__main__":
     # question_with_image = "2021 Panini Chronicles Travis Etienne Jr. RC Clear Vision Acetate Rookie #CVR-15"
     # image_url = "https://i.ebayimg.com/images/g/JCQAAOSwHcdlPEGe/s-l1200.jpg"
     test_data_csv_path = r"D:\Code\ML\Text\test\test2023年200个.xlsx"
-    save_path = r"D:\Code\ML\Text\test\test2023年200个_第1次测试.xlsx"
+    save_path = r"D:\Code\ML\Text\test\test2023年200个_第4次测试.xlsx"
     test_data_csv = pd.read_excel(test_data_csv_path)
 
     for i in range(0, len(test_data_csv)):
